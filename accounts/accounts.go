@@ -1,4 +1,4 @@
-package account
+package accounts
 
 type Account struct {	
 	owner string
