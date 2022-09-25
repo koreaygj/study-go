@@ -2,22 +2,35 @@ package main
 
 import(
 	"fmt"
-	"github.com/koreaygj/study-go/mydict"
+	"errors"
+	"net/http"
 )
+var errRequestFailed = errors.New("Request failed")
+
 func main(){
-	dictionary := mydict.Dictionary{}
-	word := "hello"
-	err := dictionary.Add(word, "hil")
-	if err != nil {
-		fmt.Println(err)
+	var results = make(map[string]string)
+	urls := []string{
+		"https://www.google.com/",
+		"https://www.naver.com/",
+		"https://www.airbnb.com/",
 	}
-	err2 := dictionary.Update(word, "king")
-	if err2 != nil {
-		fmt.Println(err2)
+	for _, url := range urls{
+		result := "OK"
+		err := hitURL(url)
+		if err != nil {
+			result = "FAILED"
+		}
+		results[url] = result
 	}
-	ans, err3 := dictionary.Search(word)
-	if err3 != nil{
-		fmt.Println(err3)
+	for url, result := range results {
+		fmt.Println(url, result)
 	}
-	fmt.Println("Word: ", word, "definiton: ", ans)
+}
+func hitURL(url string) error {
+	fmt.Println("Checking:", url)
+	resp, err := http.Get(url)
+	if(err != nil) || resp.StatusCode >= 400{
+		return errRequestFailed
+	}
+	return nil
 }
