@@ -2,35 +2,40 @@ package main
 
 import(
 	"fmt"
-	"errors"
 	"net/http"
 )
-var errRequestFailed = errors.New("Request failed")
-
+type requestResult struct {
+	url string
+	status string
+}
 func main(){
-	var results = make(map[string]string)
+	results := make(map[string]string)
+	c := make(chan requestResult)
 	urls := []string{
 		"https://www.google.com/",
 		"https://www.naver.com/",
-		"https://www.airbnb.com/",
+		"https://www.aindsfadfsafdsafb.com/",
+		"https://www.koreaygj.github.io",
+		"https://www.netflix.com",
+		"https://www.youtube.com",
 	}
 	for _, url := range urls{
-		result := "OK"
-		err := hitURL(url)
-		if err != nil {
-			result = "FAILED"
-		}
-		results[url] = result
+		go hitURL(url, c)
 	}
-	for url, result := range results {
-		fmt.Println(url, result)
+	for i := 0; i < len(urls); i++{
+		result := <- c
+		results[result.url] = result.status
+	}
+	for url, status := range results{
+		fmt.Println(url, status)
 	}
 }
-func hitURL(url string) error {
+func hitURL(url string, c chan<- requestResult)  {
 	fmt.Println("Checking:", url)
 	resp, err := http.Get(url)
+	status := "Ok"
 	if(err != nil) || resp.StatusCode >= 400{
-		return errRequestFailed
+		status = " Requeset failed"
 	}
-	return nil
+	c <- requestResult{url: url, status: status}
 }
