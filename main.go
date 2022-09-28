@@ -1,17 +1,24 @@
 package main
-
 import(
-	//"fmt"
 	"log"
-	"github.com/PuerkitoBio/goquery"
 	"net/http"
+	"fmt"
+	"strconv"
+	"github.com/PuerkitoBio/goquery"
 )
-var baseURL string = "https://kr.indeed.com/jobs?q=python&limit=50"
-
+var baseURL string = "https://koreaygj.github.io"
 func main(){
-	getPages()
+	totalPages := getPages()
+	for i := 0; i < totalPages; i++{
+		getPage(i)
+	}
+}
+func getPage(page int) {
+	pageURL := baseURL + "&start=" + strconv.Itoa(page*50)
+	fmt.Println("Requesting", pageURL)
 }
 func getPages() int{
+	pages := 0
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -27,8 +34,10 @@ func getPages() int{
 	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	checkErr(err)
-	doc.Find(".pagination")
-	return  0
+	doc.Find(".pagination").Each(func(i int, s *goquery.Selection){
+		pages = s.Find("a").Length()
+	})
+	return  pages
 }
 func checkErr(err error){
 	if err != nil{
