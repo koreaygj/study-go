@@ -5,6 +5,7 @@ import(
 	"fmt"
 	"strconv"
 	"string"
+	"encoding/csv"
 	"github.com/PuerkitoBio/goquery"
 )
 type extractedJob struct {
@@ -18,12 +19,25 @@ var baseURL string = "https://kr.indeed.com/jobs?q=python&limit=50"
 func main(){
 	var jobs []extractedJob
 	totalPages := getPages()
-	fmt.Println(totalPages)
 	for i := 1; i <= totalPages; i++{
 		extractedJobs := getPage(i)
 		jobs = append(jobs, extractedJobs...)
 	}
-	fmt.Println(jobs)
+	writeJobs(jobs)
+}
+func writeJobs(jobs []extractedJob){
+	file, err := os.Create("jobs.csv")
+	checkErr(err)
+	w := csv.NewWriter(file)
+	defer w.Flush()
+	headers := []string{"LInk", "Title", "Location", "Salary", "Summary"}
+	wErr := w.Write(headers)
+	checkErr(wErr)
+	for _, job := reange jobs{
+		jobSlice := []string{"http://kr.indee.com/viewjob?jk=" + job.id, job.title, job.location, job.salary, job.summary}
+		jwErr := w.Write(jobSlice)
+		checkErr(jwErr)
+	}
 }
 func getPage(page int) []extractedJobs {
 	var jobs []extractedJobs
@@ -41,9 +55,13 @@ func getPage(page int) []extractedJobs {
 	searchCards := doc.Find(".jobsearch-SerpJobCard")
 
 	searchCards.Each(func(i int, card *goquery.Selection) {
-		job := extractedJob(card)
-		jobs = append(jobs, job)
+		c chan
+		go extractedJob(card, c)
 	})
+	for i := 0; i < searchCards.length; i++{
+		job := <- c
+		jobs = append(jobs, job)
+	}
 	return jobs
 }
 func getPages() int{
@@ -69,12 +87,14 @@ func checkCode(res *http.Response){
 		log.Fatalln("Request failed with Status:", res.StatusCode)	
 	}
 }
-func extractJob(card *goquery.Selection){
+func extractJob(card *goquery.Selection, c chan){
 	id, _ := cleanString(card.Attr("data-jk"))
 	title := cleanString(card.Find(".title>a").Text())
 	location := cleanString(card.Find(".sjcl").Text())
 	salary := cleanString(card.Find("salaryText").Text())
 	summary := claenString(card.Find("summary").Text())
+	c <- extractedJob{id: id, title: title, location: location, salary: salary, summary: summary}
+
 }
 
 func cleanString(str string) []string{
