@@ -4,40 +4,60 @@ import(
 	"net/http"
 	"fmt"
 	"strconv"
+	"string"
 	"github.com/PuerkitoBio/goquery"
 )
-var baseURL string = "https://koreaygj.github.io"
-func main(){
-	totalPages := getPages()
-	for i := 0; i < totalPages; i++{
-		getPage(i)
-	}
+type extractedJob struct {
+	id string
+	title string
+	location string
+	salary string
+	summary string
 }
-func getPage(page int) {
+var baseURL string = "https://kr.indeed.com/jobs?q=python&limit=50"
+func main(){
+	var jobs []extractedJob
+	totalPages := getPages()
+	fmt.Println(totalPages)
+	for i := 1; i <= totalPages; i++{
+		extractedJobs := getPage(i)
+		jobs = append(jobs, extractedJobs...)
+	}
+	fmt.Println(jobs)
+}
+func getPage(page int) []extractedJobs {
+	var jobs []extractedJobs
 	pageURL := baseURL + "&start=" + strconv.Itoa(page*50)
 	fmt.Println("Requesting", pageURL)
+	res, err := http.Get(pageURL)
+	checkErr(err)
+	checkCode(res)
+
+	defer res.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	checkErr(err)
+
+	searchCards := doc.Find(".jobsearch-SerpJobCard")
+
+	searchCards.Each(func(i int, card *goquery.Selection) {
+		job := extractedJob(card)
+		jobs = append(jobs, job)
+	})
+	return jobs
 }
 func getPages() int{
 	pages := 0
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	_, err := client.Get(baseURL)
-	req, err := http.NewRequest("GET", baseURL, nil)
-	req.Header.Add("Accept", `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`)
-    req.Header.Add("User-Agent", `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11`)
-	resp, err := client.Do(req)
+	res, err := http.Get(baseURL)
 	checkErr(err)
-	checkCode(resp)
-	defer resp.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	checkCode(res)
+	defer res.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
 	checkErr(err)
 	doc.Find(".pagination").Each(func(i int, s *goquery.Selection){
-		pages = s.Find("a").Length()
+		pages = s.Find("").Length()
 	})
-	return  pages
+	return pages
 }
 func checkErr(err error){
 	if err != nil{
@@ -48,4 +68,15 @@ func checkCode(res *http.Response){
 	if res.StatusCode != 200{
 		log.Fatalln("Request failed with Status:", res.StatusCode)	
 	}
+}
+func extractJob(card *goquery.Selection){
+	id, _ := cleanString(card.Attr("data-jk"))
+	title := cleanString(card.Find(".title>a").Text())
+	location := cleanString(card.Find(".sjcl").Text())
+	salary := cleanString(card.Find("salaryText").Text())
+	summary := claenString(card.Find("summary").Text())
+}
+
+func cleanString(str string) []string{
+	return strings.Join(strings.Fields(strings.Trimspace(str)), " ")
 }
