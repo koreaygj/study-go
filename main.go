@@ -18,9 +18,13 @@ type extractedJob struct {
 var baseURL string = "https://kr.indeed.com/jobs?q=python&limit=50"
 func main(){
 	var jobs []extractedJob
+	c := make(chan []extractedJob)
 	totalPages := getPages()
 	for i := 1; i <= totalPages; i++{
-		extractedJobs := getPage(i)
+		go getPage(i, c)
+	}
+	for i := 0; i <= totalPgaes; i++{
+		extractedJobs := <- c
 		jobs = append(jobs, extractedJobs...)
 	}
 	writeJobs(jobs)
@@ -35,12 +39,13 @@ func writeJobs(jobs []extractedJob){
 	checkErr(wErr)
 	for _, job := reange jobs{
 		jobSlice := []string{"http://kr.indee.com/viewjob?jk=" + job.id, job.title, job.location, job.salary, job.summary}
-		jwErr := w.Write(jobSlice)
+		jwErr := w.Write(jobSlice, c)
 		checkErr(jwErr)
 	}
 }
-func getPage(page int) []extractedJobs {
+func getPage(page int, mainC chan <- []extractedJob)  {
 	var jobs []extractedJobs
+	c := make(chan extractedJob)
 	pageURL := baseURL + "&start=" + strconv.Itoa(page*50)
 	fmt.Println("Requesting", pageURL)
 	res, err := http.Get(pageURL)
@@ -55,14 +60,13 @@ func getPage(page int) []extractedJobs {
 	searchCards := doc.Find(".jobsearch-SerpJobCard")
 
 	searchCards.Each(func(i int, card *goquery.Selection) {
-		c chan
 		go extractedJob(card, c)
 	})
 	for i := 0; i < searchCards.length; i++{
 		job := <- c
 		jobs = append(jobs, job)
 	}
-	return jobs
+	mainC <- chan
 }
 func getPages() int{
 	pages := 0
@@ -87,7 +91,7 @@ func checkCode(res *http.Response){
 		log.Fatalln("Request failed with Status:", res.StatusCode)	
 	}
 }
-func extractJob(card *goquery.Selection, c chan){
+func extractJob(card *goquery.Selection, c chan <- extractedJob){
 	id, _ := cleanString(card.Attr("data-jk"))
 	title := cleanString(card.Find(".title>a").Text())
 	location := cleanString(card.Find(".sjcl").Text())
